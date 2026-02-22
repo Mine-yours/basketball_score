@@ -37,6 +37,22 @@ class GameEventNotifier extends Notifier<List<GameEvent>> {
     _saveEvents(newState);
   }
 
+  void addEvents(List<GameEvent> newEvents) {
+    final newState = [...state, ...newEvents];
+    state = newState;
+    _saveEvents(newState);
+  }
+
+  void updateEventPlayer(String eventId, String? newPlayerId) {
+    state = state.map((e) {
+      if (e.id == eventId) {
+        return e.copyWith(playerId: newPlayerId);
+      }
+      return e;
+    }).toList().cast<GameEvent>();
+    _saveEvents(state);
+  }
+
   void undoLastEvent() {
     if (state.isNotEmpty) {
       final newState = List<GameEvent>.from(state)..removeLast();

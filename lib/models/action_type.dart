@@ -13,6 +13,8 @@ enum ActionType {
   turnover,
   foul,
   reb,
+  putback,
+  ft,
 }
 
 enum TeamType {

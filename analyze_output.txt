@@ -1,0 +1,33 @@
+Analyzing basket...                                             
+
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:30:87 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:30:264 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:31:83 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:31:209 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:32:83 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:32:217 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:39:90 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:39:218 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:40:77 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:40:205 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:41:85 • undefined_identifier
+  error • Undefined name 'isFTMode' • lib/ui/widgets/action_pad.dart:41:173 • undefined_identifier
+  error • Undefined name 'ftRemainingShotsProvider' • lib/ui/widgets/action_pad.dart:142:33 • undefined_identifier
+  error • Undefined name 'ftRemainingShotsProvider' • lib/ui/widgets/action_pad.dart:144:20 • undefined_identifier
+   info • Statements in an if should be enclosed in a block • lib/ui/widgets/court_area.dart:70:30 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/ui/widgets/court_area.dart:71:34 • curly_braces_in_flow_control_structures
+   info • Don't use 'BuildContext's across async gaps • lib/ui/widgets/court_area.dart:80:47 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/court_area.dart:254:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/court_area.dart:257:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/court_area.dart:349:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/header_scoreboard.dart:322:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/header_scoreboard.dart:323:105 • deprecated_member_use
+   info • The member 'state' overrides an inherited member but isn't annotated with '@override' • lib/ui/widgets/player_list.dart:20:7 • annotate_overrides
+   info • The member 'state' overrides an inherited member but isn't annotated with '@override' • lib/ui/widgets/player_list.dart:28:7 • annotate_overrides
+   info • The member 'state' overrides an inherited member but isn't annotated with '@override' • lib/ui/widgets/player_list.dart:36:7 • annotate_overrides
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/player_list.dart:60:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/player_list.dart:60:87 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/ui/widgets/player_list.dart:142:49 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/widgets/player_list.dart:237:66 • deprecated_member_use
+warning • A value for optional parameter 'isDisabled' isn't ever given • lib/ui/widgets/player_list.dart:269:51 • unused_element_parameter
+

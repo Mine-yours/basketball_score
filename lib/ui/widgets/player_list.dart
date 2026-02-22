@@ -4,38 +4,15 @@ import '../../models/action_type.dart';
 import '../../models/game_event.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/stats_provider.dart';
-import '../../providers/pending_action_provider.dart';
+import '../../providers/selection_provider.dart';
 import '../../providers/period_provider.dart';
 import '../../providers/clock_provider.dart';
 import '../../models/player.dart';
 import 'package:uuid/uuid.dart';
 import 'court_area.dart';
+import 'action_pad.dart';
 
 const uuid = Uuid();
-
-class SelectedPlayerNotifier extends Notifier<Player?> {
-  @override
-  Player? build() => null;
-  
-  set state(Player? value) => super.state = value;
-}
-final selectedPlayerProvider = NotifierProvider<SelectedPlayerNotifier, Player?>(SelectedPlayerNotifier.new);
-
-class IsSubstitutionModeNotifier extends Notifier<bool> {
-  @override
-  bool build() => false;
-
-  set state(bool value) => super.state = value;
-}
-final isSubstitutionModeProvider = NotifierProvider<IsSubstitutionModeNotifier, bool>(IsSubstitutionModeNotifier.new);
-
-class SubstitutionTargetNotifier extends Notifier<Player?> {
-  @override
-  Player? build() => null;
-
-  set state(Player? value) => super.state = value;
-}
-final substitutionTargetProvider = NotifierProvider<SubstitutionTargetNotifier, Player?>(SubstitutionTargetNotifier.new);
 
 class PlayerList extends ConsumerWidget {
   final TeamType team;
@@ -48,47 +25,53 @@ class PlayerList extends ConsumerWidget {
         ? ref.watch(homeTeamPlayersProvider) 
         : ref.watch(awayTeamPlayersProvider);
     
-    final players = isSubMode ? allPlayers : allPlayers.where((p) => p.isOnCourt).toList();
     final selectedPlayer = ref.watch(selectedPlayerProvider);
     final subTarget = ref.watch(substitutionTargetProvider);
 
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: Column(
-        children: [
-          Container(
-             padding: const EdgeInsets.all(8),
-             color: team == TeamType.home ? Colors.blue.withOpacity(0.2) : Colors.red.withOpacity(0.2),
-             child: const Row(
-               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-               children: [Text('Num'), Text('Name'), Text('Pts/F')],
-             ),
+    final List<Player> players = (isSubMode 
+        ? allPlayers.toList() 
+        : allPlayers.where((p) => p.isOnCourt).toList())
+      ..sort((a, b) => int.parse(a.number).compareTo(int.parse(b.number)));
+    
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          color: isSubMode ? Colors.orange : (team == TeamType.home ? Colors.blue[900] : Colors.red[900]),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(team.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              const Text('PTS  FOUL', style: TextStyle(color: Colors.white70, fontSize: 10)),
+            ],
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: players.length,
-              itemBuilder: (context, index) {
-                final player = players[index];
-                final isSelected = isSubMode ? subTarget?.id == player.id : selectedPlayer?.id == player.id;
-                
-                return _PlayerListTile(
-                  player: player,
-                  isSelected: isSelected,
-                  isSubMode: isSubMode,
-                  onTap: () {
-                    if (isSubMode) {
-                      _handleSubTap(ref, player, team);
-                    } else {
-                      _handleActionTap(ref, player, context);
-                    }
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            itemCount: players.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final player = players[index];
+              final isSelected = isSubMode ? subTarget?.id == player.id : selectedPlayer?.id == player.id;
+              
+              return _PlayerListTile(
+                player: player,
+                isSelected: isSelected,
+                isSubMode: isSubMode,
+                onTap: () {
+                  if (isSubMode) {
+                    _handleSubTap(ref, player, team);
+                  } else {
+                    _handleActionTap(ref, player, context);
                   }
-                );
-              },
-            ),
+                }
+              );
+            },
           ),
-          if (!isSubMode) _TeamActionTile(team: team),
-        ],
-      ),
+        ),
+        _TeamActionTile(team: team),
+      ],
     );
   }
 
@@ -99,50 +82,52 @@ class PlayerList extends ConsumerWidget {
     if (pendingAction != null) {
       ActionType action = pendingAction;
       
+      // In Reverse Flow, we must set the selected player BEFORE calling handlers
+      // so they can access it, and it also updates the UI to show who was picked.
+      ref.read(selectedPlayerProvider.notifier).setPlayer(player);
+
       if (action == ActionType.reb) {
-        final events = ref.read(gameEventsProvider);
-        final lastEvent = events.isNotEmpty ? events.last : null;
-        if (lastEvent != null && (lastEvent.action == ActionType.p2Miss || lastEvent.action == ActionType.p3Miss || lastEvent.action == ActionType.p1Miss)) {
-          action = lastEvent.team == player.team ? ActionType.or : ActionType.dr;
-        } else {
-          action = (lastEvent?.team == player.team) ? ActionType.or : ActionType.dr;
-        }
+        handleRebound(ref, context);
+        return;
+      }
+      
+      if (action == ActionType.ft) {
+        startFTSet(context, ref);
+        return;
       }
 
-      final period = ref.read(currentPeriodProvider);
-      final clockSeconds = ref.read(gameClockProvider);
-      final m = clockSeconds ~/ 60;
-      final s = clockSeconds % 60;
-      final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+      if (action == ActionType.putback) {
+        handlePutback(ref, context);
+        return;
+      }
 
-      final event = GameEvent(
-        id: uuid.v4(),
-        timestamp: DateTime.now(),
-        gameClock: gameClock,
-        period: period,
-        team: player.team,
-        playerId: player.id,
-        action: action,
-      );
-      ref.read(gameEventsProvider.notifier).addEvent(event);
-      ref.read(pendingActionProvider.notifier).state = null;
+      handleAction(ref, action, context);
+      return;
     } else if (pendingShot != null) {
       final x = pendingShot.x;
       final y = pendingShot.y;
 
-      final isMake = await showMakeMissDialog(context);
-      if (isMake == null) return;
+      final is3P = pendingShot.is3P;
+      final isPaint = (x < 0.2 || x > 0.8) && (y > 0.3 && y < 0.7);
 
+      final shotType = await showShotResultDialog(context, isPaint);
+      if (shotType == null) return;
+
+      final isMake = shotType == 'MAKE' || shotType == 'LAYUP' || shotType == 'DUNK';
+      
       String? assistPlayerId;
       if (isMake) {
         assistPlayerId = await showAssistDialog(context, ref, player.team, player.id);
       }
-
-      final is3P = pendingShot.is3P;
-
-      final action = is3P 
-          ? (isMake ? ActionType.p3Make : ActionType.p3Miss)
-          : (isMake ? ActionType.p2Make : ActionType.p2Miss);
+      
+      ActionType action;
+      if (shotType == 'LAYUP' || shotType == 'DUNK') {
+        action = ActionType.p2Make;
+      } else if (is3P) {
+        action = isMake ? ActionType.p3Make : ActionType.p3Miss;
+      } else {
+        action = isMake ? ActionType.p2Make : ActionType.p2Miss;
+      }
 
       final period = ref.read(currentPeriodProvider);
       final clockSeconds = ref.read(gameClockProvider);
@@ -164,13 +149,13 @@ class PlayerList extends ConsumerWidget {
       );
 
       ref.read(gameEventsProvider.notifier).addEvent(event);
-      ref.read(pendingShotLocationProvider.notifier).state = null;
+      ref.read(pendingShotLocationProvider.notifier).setLocation(null);
     } else {
       final selectedPlayer = ref.read(selectedPlayerProvider);
       if (selectedPlayer?.id == player.id) {
-        ref.read(selectedPlayerProvider.notifier).state = null;
+        ref.read(selectedPlayerProvider.notifier).setPlayer(null);
       } else {
-        ref.read(selectedPlayerProvider.notifier).state = player;
+        ref.read(selectedPlayerProvider.notifier).setPlayer(player);
       }
     }
   }
@@ -180,7 +165,7 @@ class PlayerList extends ConsumerWidget {
     
     if (subTarget == null) {
       if (player.team == team) {
-        ref.read(substitutionTargetProvider.notifier).state = player;
+        ref.read(substitutionTargetProvider.notifier).setPlayer(player);
       }
     } else {
       if (subTarget.team == player.team && subTarget.id != player.id && subTarget.isOnCourt != player.isOnCourt) {
@@ -192,10 +177,10 @@ class PlayerList extends ConsumerWidget {
             ref.read(awayTeamPlayersProvider.notifier).toggleCourtStatus(subTarget.id);
             ref.read(awayTeamPlayersProvider.notifier).toggleCourtStatus(player.id);
         }
-        ref.read(substitutionTargetProvider.notifier).state = null;
+        ref.read(substitutionTargetProvider.notifier).setPlayer(null);
       } else {
         // Change target
-        ref.read(substitutionTargetProvider.notifier).state = player;
+        ref.read(substitutionTargetProvider.notifier).setPlayer(player);
       }
     }
   }
@@ -216,36 +201,62 @@ class _PlayerListTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stats = ref.watch(playerStatsProvider(player.id));
-    
+    final playerStats = ref.watch(playerStatsProvider(player.id));
+
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).colorScheme.primaryContainer : 
-                 (isSubMode && !player.isOnCourt ? Colors.grey[800] : null),
-          border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2))),
-        ),
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        color: isSelected 
+            ? (isSubMode ? Colors.orange.withAlpha(128) : Theme.of(context).colorScheme.primaryContainer) 
+            : (player.isOnCourt ? null : Colors.grey.withAlpha(50)),
         child: Row(
           children: [
             SizedBox(
               width: 24,
-              child: Text(player.number, style: TextStyle(fontWeight: FontWeight.bold, color: isSubMode && !player.isOnCourt ? Colors.grey : null)),
+              child: Text(
+                player.number,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: player.isOnCourt ? null : Colors.grey,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
-            Expanded(child: Text(player.name, style: TextStyle(color: isSubMode && !player.isOnCourt ? Colors.grey : null))),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey[800],
-                borderRadius: BorderRadius.circular(4),
-              ),
+            Expanded(
               child: Text(
-                '${stats.points} / ${stats.fouls}',
-                style: const TextStyle(fontSize: 12),
+                player.name,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: player.isOnCourt ? null : Colors.grey,
+                  fontSize: 13,
+                ),
               ),
             ),
+            if (playerStats != null) ...[
+              SizedBox(
+                width: 30,
+                child: Center(
+                  child: Text(
+                    '${playerStats.points}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 30,
+                child: Center(
+                  child: Text(
+                    '${playerStats.fouls}',
+                    style: TextStyle(
+                      color: playerStats.fouls >= 5 ? Colors.red : (playerStats.fouls >= 4 ? Colors.orange : null),
+                      fontWeight: playerStats.fouls >= 4 ? FontWeight.bold : null,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -270,7 +281,7 @@ class _TeamActionTile extends ConsumerWidget {
           team: team,
           isOnCourt: true,
         );
-        ref.read(selectedPlayerProvider.notifier).state = dummyPlayer;
+        ref.read(selectedPlayerProvider.notifier).setPlayer(dummyPlayer);
       },
       child: Container(
         padding: const EdgeInsets.all(12),

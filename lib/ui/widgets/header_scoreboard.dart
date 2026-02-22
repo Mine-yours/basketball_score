@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../models/action_type.dart';
+import '../../models/game_event.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../providers/clock_provider.dart';
 import '../../providers/period_provider.dart';
-import 'player_list.dart';
+import '../../providers/selection_provider.dart';
 import 'clock_edit_modal.dart';
 
 class HeaderScoreboard extends ConsumerStatefulWidget {
@@ -69,6 +70,15 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
     final availablePeriods = ref.watch(availablePeriodsProvider);
     final displayFilter = ref.watch(displayPeriodFilterProvider);
     final lineScores = ref.watch(lineScoreProvider);
+    final homeDirection = ref.watch(homeAttackDirectionProvider);
+
+    // Auto-side change logic
+    ref.listen(currentPeriodProvider, (previous, next) {
+      if ((next == 'Q3' || next == 'OT1') && previous != next) {
+        // Simple heuristic: if we just entered Q3/OT1, toggle
+        ref.read(homeAttackDirectionProvider.notifier).toggle();
+      }
+    });
 
     final filteredEvents = displayFilter == 'ALL' ? events : events.where((e) => e.period == displayFilter).toList();
     final homeEvents = filteredEvents.where((e) => e.team == TeamType.home).toList().reversed.take(3).toList();
@@ -85,7 +95,7 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
           Expanded(
             child: Row(
               children: [
-                _TeamHeader('HOME', homeScore, homeFouls, Colors.blue),
+                _TeamHeader('HOME', homeScore, homeFouls, Colors.blue, direction: homeDirection == AttackDirection.right ? '→' : '←'),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -94,10 +104,13 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                     children: [
                       const Text('Recent Plays', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
                       if (homeEvents.isEmpty) const Text('-', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      ...homeEvents.map((e) => Text(
-                        e.action.name.toUpperCase(),
-                        style: TextStyle(fontSize: 12, color: Colors.blue[300], fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+                      ...homeEvents.map((e) => InkWell(
+                        onTap: () => _editEventPlayer(context, ref, e),
+                        child: Text(
+                          e.action.name.toUpperCase(),
+                          style: TextStyle(fontSize: 12, color: Colors.blue[300], fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       )),
                     ],
                   ),
@@ -112,30 +125,41 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Period Selection Tabs
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _PeriodTab('ALL', displayFilter == 'ALL', () => ref.read(displayPeriodFilterProvider.notifier).state = 'ALL'),
-                      ...availablePeriods.map((p) => _PeriodTab(
-                        p, 
-                        displayFilter == p, 
-                        () {
-                          ref.read(displayPeriodFilterProvider.notifier).state = p;
-                          ref.read(currentPeriodProvider.notifier).state = p;
-                        },
-                        isCurrent: currentPeriod == p,
-                      )),
-                      IconButton(
-                        icon: const Icon(LucideIcons.plus, size: 14),
-                        onPressed: () => ref.read(availablePeriodsProvider.notifier).addOvertime(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                // Period Selection Tabs & Side Change
+                Row(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _PeriodTab('ALL', displayFilter == 'ALL', () => ref.read(displayPeriodFilterProvider.notifier).state = 'ALL'),
+                            ...availablePeriods.map((p) => _PeriodTab(
+                              p, 
+                              displayFilter == p, 
+                              () {
+                                ref.read(displayPeriodFilterProvider.notifier).state = p;
+                                ref.read(currentPeriodProvider.notifier).state = p;
+                              },
+                              isCurrent: currentPeriod == p,
+                            )),
+                            IconButton(
+                              icon: const Icon(LucideIcons.plus, size: 14),
+                              onPressed: () => ref.read(availablePeriodsProvider.notifier).addOvertime(),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.refreshCw, size: 16),
+                      tooltip: 'Side Change',
+                      onPressed: () => ref.read(homeAttackDirectionProvider.notifier).toggle(),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 // Main Row: Home Line Scores | Clock | Away Line Scores
@@ -175,8 +199,8 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
                     onPressed: () {
-                      ref.read(isSubstitutionModeProvider.notifier).state = !isSubMode;
-                      ref.read(substitutionTargetProvider.notifier).state = null;
+                      ref.read(isSubstitutionModeProvider.notifier).toggle();
+                      ref.read(substitutionTargetProvider.notifier).setPlayer(null);
                     },
                     icon: const Icon(LucideIcons.arrowRightLeft, size: 14),
                     label: const Text('SUBSTITUTION', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -198,19 +222,52 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                     children: [
                       const Text('Recent Plays', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
                       if (awayEvents.isEmpty) const Text('-', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      ...awayEvents.map((e) => Text(
-                        e.action.name.toUpperCase(),
-                        style: TextStyle(fontSize: 12, color: Colors.red[300], fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+                      ...awayEvents.map((e) => InkWell(
+                        onTap: () => _editEventPlayer(context, ref, e),
+                        child: Text(
+                          e.action.name.toUpperCase(),
+                          style: TextStyle(fontSize: 12, color: Colors.red[300], fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       )),
                     ],
                   ),
                 ),
                 const SizedBox(width: 16),
-                _TeamHeader('AWAY', awayScore, awayFouls, Colors.red),
+                _TeamHeader('AWAY', awayScore, awayFouls, Colors.red, direction: homeDirection == AttackDirection.right ? '←' : '→'),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _editEventPlayer(BuildContext context, WidgetRef ref, GameEvent event) {
+    final players = event.team == TeamType.home 
+        ? ref.read(homeTeamPlayersProvider) 
+        : ref.read(awayTeamPlayersProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text('Update Player for ${event.action.name}'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () {
+              ref.read(gameEventsProvider.notifier).updateEventPlayer(event.id, null);
+              Navigator.pop(context);
+            },
+            child: const Text('TEAM'),
+          ),
+          const Divider(),
+          ...players.map((p) => SimpleDialogOption(
+            onPressed: () {
+              ref.read(gameEventsProvider.notifier).updateEventPlayer(event.id, p.id);
+              Navigator.pop(context);
+            },
+            child: Text('${p.number} ${p.name}'),
+          )),
         ],
       ),
     );
@@ -222,8 +279,9 @@ class _TeamHeader extends StatelessWidget {
   final int score;
   final int fouls;
   final Color color;
+  final String direction;
 
-  const _TeamHeader(this.label, this.score, this.fouls, this.color);
+  const _TeamHeader(this.label, this.score, this.fouls, this.color, {required this.direction});
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +289,14 @@ class _TeamHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(width: 4),
+            Text(direction, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
         Text('$score', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, fontFamily: 'monospace', height: 1.0)),
         Text('Fouls: $fouls', style: const TextStyle(fontSize: 12)),
       ],

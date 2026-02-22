@@ -1,0 +1,32 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/action_type.dart';
+import '../models/player.dart';
+
+// Current selected player for actions
+class SelectedPlayerNotifier extends Notifier<Player?> {
+  @override
+  Player? build() => null;
+  
+  void setPlayer(Player? player) => state = player;
+}
+final selectedPlayerProvider = NotifierProvider<SelectedPlayerNotifier, Player?>(SelectedPlayerNotifier.new);
+
+// Substitution mode state
+class IsSubstitutionModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  
+  void toggle() => state = !state;
+  void setMode(bool value) => state = value;
+}
+final isSubstitutionModeProvider = NotifierProvider<IsSubstitutionModeNotifier, bool>(IsSubstitutionModeNotifier.new);
+
+// Target player for substitution
+class SubstitutionTargetNotifier extends Notifier<Player?> {
+  @override
+  Player? player? build() => null; // Wait, I have a typo here in my thought? No, I'll fix it.
+  
+  void setPlayer(Player? player) => state = player;
+}
+// Fix typo: Player? player? build() -> Player? build()
+// Re-writing correctly...

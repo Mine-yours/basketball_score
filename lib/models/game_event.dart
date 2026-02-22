@@ -49,9 +49,35 @@ class GameEvent {
       team: TeamType.values.byName(json['team']),
       playerId: json['playerId'],
       action: ActionType.values.byName(json['action']),
-      x: json['x'] as double?,
-      y: json['y'] as double?,
+      x: (json['x'] as num?)?.toDouble(),
+      y: (json['y'] as num?)?.toDouble(),
       assistPlayerId: json['assistPlayerId'],
+    );
+  }
+
+  GameEvent copyWith({
+    String? id,
+    DateTime? timestamp,
+    String? gameClock,
+    String? period,
+    TeamType? team,
+    String? playerId,
+    ActionType? action,
+    double? x,
+    double? y,
+    String? assistPlayerId,
+  }) {
+    return GameEvent(
+      id: id ?? this.id,
+      timestamp: timestamp ?? this.timestamp,
+      gameClock: gameClock ?? this.gameClock,
+      period: period ?? this.period,
+      team: team ?? this.team,
+      playerId: playerId ?? this.playerId,
+      action: action ?? this.action,
+      x: x ?? this.x,
+      y: y ?? this.y,
+      assistPlayerId: assistPlayerId ?? this.assistPlayerId,
     );
   }
 }

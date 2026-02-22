@@ -5,7 +5,7 @@ import '../../models/action_type.dart';
 import '../../models/game_event.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/stats_provider.dart';
-import '../../providers/pending_action_provider.dart';
+import '../../providers/selection_provider.dart';
 import '../../providers/period_provider.dart';
 import '../../providers/clock_provider.dart';
 import 'player_list.dart';
@@ -31,7 +31,11 @@ class CourtArea extends ConsumerWidget {
             color: const Color(0xFF0F172A), // Dark slate
             child: CustomPaint(
               size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: CourtPainter(events: filteredEvents, pendingShot: pendingShot),
+              painter: CourtPainter(
+                events: filteredEvents, 
+                pendingShot: pendingShot,
+                homeDirection: ref.watch(homeAttackDirectionProvider),
+              ),
             ),
           ),
         );
@@ -48,24 +52,33 @@ class CourtArea extends ConsumerWidget {
 
     if (player == null) {
       final is3P = is3PointShot(details.localPosition.dx, details.localPosition.dy, Size(constraints.maxWidth, constraints.maxHeight));
-      ref.read(pendingShotLocationProvider.notifier).state = PendingShotLocation(x, y, is3P);
+      ref.read(pendingShotLocationProvider.notifier).setLocation(PendingShotLocation(x, y, is3P));
       return;
     }
 
     // final aspect = constraints.maxWidth / constraints.maxHeight;
     final is3P = is3PointShot(details.localPosition.dx, details.localPosition.dy, Size(constraints.maxWidth, constraints.maxHeight));
+    final isPaint = (x < 0.2 || x > 0.8) && (y > 0.3 && y < 0.7);
 
-    final isMake = await showMakeMissDialog(context);
-    if (isMake == null) return;
+    final shotType = await showShotResultDialog(context, isPaint);
+    if (shotType == null) return;
+
+    final isMake = shotType == 'MAKE' || shotType == 'LAYUP' || shotType == 'DUNK';
+    
+    // Determine specific action type
+    ActionType action;
+    if (shotType == 'LAYUP') action = ActionType.p2Make; // We might want specific ActionTypes, but for now map to p2Make
+    else if (shotType == 'DUNK') action = ActionType.p2Make;
+    else if (is3P) {
+      action = isMake ? ActionType.p3Make : ActionType.p3Miss;
+    } else {
+      action = isMake ? ActionType.p2Make : ActionType.p2Miss;
+    }
 
     String? assistPlayerId;
     if (isMake) {
       assistPlayerId = await showAssistDialog(context, ref, player.team, player.id);
     }
-
-    final action = is3P 
-        ? (isMake ? ActionType.p3Make : ActionType.p3Miss)
-        : (isMake ? ActionType.p2Make : ActionType.p2Miss);
 
     final period = ref.read(currentPeriodProvider);
     final clockSeconds = ref.read(gameClockProvider);
@@ -87,7 +100,7 @@ class CourtArea extends ConsumerWidget {
     );
 
     ref.read(gameEventsProvider.notifier).addEvent(event);
-    ref.read(selectedPlayerProvider.notifier).state = null; // Clear selection
+    ref.read(selectedPlayerProvider.notifier).setPlayer(null); // Clear selection
   }
 }
 
@@ -134,23 +147,39 @@ bool is3PointShot(double px, double py, Size size) {
     }
 }
 
-Future<bool?> showMakeMissDialog(BuildContext context) {
-  return showDialog<bool>(
+Future<String?> showShotResultDialog(BuildContext context, bool isPaint) {
+  return showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Shot Result'),
-      actions: [
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('MISS', style: TextStyle(color: Colors.white)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('MAKE', style: TextStyle(color: Colors.white)),
-        ),
-      ],
+      content: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop('MISS'),
+            child: const Text('MISS', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () => Navigator.of(context).pop('MAKE'),
+            child: const Text('MAKE', style: TextStyle(color: Colors.white)),
+          ),
+          if (isPaint) ...[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              onPressed: () => Navigator.of(context).pop('LAYUP'),
+              child: const Text('LAYUP', style: TextStyle(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+              onPressed: () => Navigator.of(context).pop('DUNK'),
+              child: const Text('DUNK', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }
@@ -193,8 +222,9 @@ Future<String?> showAssistDialog(BuildContext context, WidgetRef ref, TeamType t
 class CourtPainter extends CustomPainter {
   final List<GameEvent> events;
   final PendingShotLocation? pendingShot;
+  final AttackDirection homeDirection;
 
-  CourtPainter({required this.events, this.pendingShot});
+  CourtPainter({required this.events, this.pendingShot, required this.homeDirection});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -248,8 +278,9 @@ class CourtPainter extends CustomPainter {
     );
 
     // Team Labels to indicate attack direction
-    _drawText(canvas, "HOME", Offset(size.width * 0.25, 25), const Color(0xFF3B82F6), size);
-    _drawText(canvas, "AWAY", Offset(size.width * 0.75, 25), const Color(0xFFEF4444), size);
+    final homeTargetLeft = homeDirection == AttackDirection.left;
+    _drawText(canvas, homeTargetLeft ? "← HOME Target" : "HOME Target →", Offset(homeTargetLeft ? size.width * 0.1 : size.width * 0.9, 25), const Color(0xFF3B82F6), size);
+    _drawText(canvas, homeTargetLeft ? "AWAY Target →" : "← AWAY Target", Offset(homeTargetLeft ? size.width * 0.9 : size.width * 0.1, 25), const Color(0xFFEF4444), size);
 
 
     // Left 3P Line

@@ -34,3 +34,17 @@ class DisplayPeriodFilterNotifier extends Notifier<String> {
 }
 
 final displayPeriodFilterProvider = NotifierProvider<DisplayPeriodFilterNotifier, String>(DisplayPeriodFilterNotifier.new);
+
+enum AttackDirection { left, right }
+
+class HomeAttackDirectionNotifier extends Notifier<AttackDirection> {
+  @override
+  AttackDirection build() => AttackDirection.right;
+
+  void toggle() {
+    state = state == AttackDirection.right ? AttackDirection.left : AttackDirection.right;
+  }
+}
+
+final homeAttackDirectionProvider = NotifierProvider<HomeAttackDirectionNotifier, AttackDirection>(HomeAttackDirectionNotifier.new);
+
