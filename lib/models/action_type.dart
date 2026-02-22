@@ -15,6 +15,8 @@ enum ActionType {
   reb,
   putback,
   ft,
+  subIn,
+  subOut,
 }
 
 enum TeamType {

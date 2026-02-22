@@ -18,7 +18,10 @@ class GameEventNotifier extends Notifier<List<GameEvent>> {
     if (eventsJson != null) {
       try {
         final List<dynamic> decoded = jsonDecode(eventsJson);
-        return decoded.map((e) => GameEvent.fromJson(e)).toList();
+        return decoded
+            .where((e) => e != null)
+            .map((e) => GameEvent.fromJson(e as Map<String, dynamic>))
+            .toList();
       } catch (e) {
         return [];
       }

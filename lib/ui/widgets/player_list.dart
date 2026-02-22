@@ -177,12 +177,50 @@ class PlayerList extends ConsumerWidget {
             ref.read(awayTeamPlayersProvider.notifier).toggleCourtStatus(subTarget.id);
             ref.read(awayTeamPlayersProvider.notifier).toggleCourtStatus(player.id);
         }
+
+        // Log the substitution events
+        _logSubstitution(ref, subTarget, player);
+
         ref.read(substitutionTargetProvider.notifier).setPlayer(null);
       } else {
         // Change target
         ref.read(substitutionTargetProvider.notifier).setPlayer(player);
       }
     }
+  }
+
+  void _logSubstitution(WidgetRef ref, Player p1, Player p2) {
+    final period = ref.read(currentPeriodProvider);
+    final clockSeconds = ref.read(gameClockProvider);
+    final m = clockSeconds ~/ 60;
+    final s = clockSeconds % 60;
+    final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
+    final playerOut = p1.isOnCourt ? p1 : p2;
+    final playerIn = p1.isOnCourt ? p2 : p1;
+
+    final events = [
+      GameEvent(
+        id: uuid.v4(),
+        timestamp: DateTime.now(),
+        gameClock: gameClock,
+        period: period,
+        team: playerOut.team,
+        playerId: playerOut.id,
+        action: ActionType.subOut,
+      ),
+      GameEvent(
+        id: uuid.v4(),
+        timestamp: DateTime.now().add(const Duration(milliseconds: 10)),
+        gameClock: gameClock,
+        period: period,
+        team: playerIn.team,
+        playerId: playerIn.id,
+        action: ActionType.subIn,
+      ),
+    ];
+
+    ref.read(gameEventsProvider.notifier).addEvents(events);
   }
 }
 
@@ -240,7 +278,7 @@ class _PlayerListTile extends ConsumerWidget {
                 width: 30,
                 child: Center(
                   child: Text(
-                    '${playerStats.points}',
+                    '${playerStats.pts}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

@@ -10,6 +10,7 @@ import '../../providers/clock_provider.dart';
 import '../../providers/period_provider.dart';
 import '../../providers/selection_provider.dart';
 import 'clock_edit_modal.dart';
+import 'box_score_dialog.dart';
 
 class HeaderScoreboard extends ConsumerStatefulWidget {
   const HeaderScoreboard({super.key});
@@ -163,6 +164,16 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                         minimumSize: const Size(0, 36),
                       ),
                       onPressed: () => ref.read(homeAttackDirectionProvider.notifier).toggle(),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(LucideIcons.barChart2, size: 14),
+                      label: const Text('BOX SCORE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        minimumSize: const Size(0, 36),
+                      ),
+                      onPressed: () => showDialog(context: context, builder: (context) => const BoxScoreDialog()),
                     ),
                   ],
                 ),

@@ -42,13 +42,13 @@ class GameEvent {
 
   factory GameEvent.fromJson(Map<String, dynamic> json) {
     return GameEvent(
-      id: json['id'],
-      timestamp: DateTime.parse(json['timestamp']),
-      gameClock: json['gameClock'],
-      period: json['period'],
-      team: TeamType.values.byName(json['team']),
-      playerId: json['playerId'],
-      action: ActionType.values.byName(json['action']),
+      id: json['id'] ?? '',
+      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+      gameClock: json['gameClock'] ?? '00:00',
+      period: json['period'] ?? 'Q1',
+      team: json['team'] != null ? TeamType.values.byName(json['team']) : TeamType.home,
+      playerId: json['playerId'] ?? '',
+      action: json['action'] != null ? ActionType.values.byName(json['action']) : ActionType.p2Miss, 
       x: (json['x'] as num?)?.toDouble(),
       y: (json['y'] as num?)?.toDouble(),
       assistPlayerId: json['assistPlayerId'],

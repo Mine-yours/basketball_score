@@ -58,7 +58,8 @@ final awayScoreProvider = Provider<int>((ref) {
   return _calculateScore(events, TeamType.away);
 });
 
-int _calculateScore(List<GameEvent> events, TeamType team) {
+int _calculateScore(List<GameEvent>? events, TeamType team) {
+  if (events == null) return 0;
   return events.where((e) => e.team == team).fold(0, (sum, e) {
     if (e.action == ActionType.p1Make) return sum + 1;
     if (e.action == ActionType.p2Make) return sum + 2;
@@ -81,14 +82,49 @@ final awayFoulsProvider = Provider<int>((ref) {
   return _calculateTeamFouls(filtered, TeamType.away);
 });
 
-int _calculateTeamFouls(List<GameEvent> events, TeamType team) {
+int _calculateTeamFouls(List<GameEvent>? events, TeamType team) {
+  if (events == null) return 0;
   return events.where((e) => e.team == team && e.action == ActionType.foul).length;
 }
 
 class PlayerStats {
-  final int points;
+  final int pts;
+  final int fgm;
+  final int fga;
+  final int p2m;
+  final int p2a;
+  final int p3m;
+  final int p3a;
+  final int ftm;
+  final int fta;
+  final int oreb;
+  final int dreb;
+  final int treb;
+  final int ast;
+  final int stl;
+  final int blk;
+  final int turnover;
   final int fouls;
-  PlayerStats({required this.points, required this.fouls});
+
+  PlayerStats({
+    required this.pts,
+    required this.fgm,
+    required this.fga,
+    required this.p2m,
+    required this.p2a,
+    required this.p3m,
+    required this.p3a,
+    required this.ftm,
+    required this.fta,
+    required this.oreb,
+    required this.dreb,
+    required this.treb,
+    required this.ast,
+    required this.stl,
+    required this.blk,
+    required this.turnover,
+    required this.fouls,
+  });
 }
 
 final playerStatsProvider = Provider.family<PlayerStats, String>((ref, playerId) {
@@ -97,16 +133,68 @@ final playerStatsProvider = Provider.family<PlayerStats, String>((ref, playerId)
   final filtered = filter == 'ALL' ? events : events.where((e) => e.period == filter).toList();
   
   int pts = 0;
-  int fouls = 0;
+  int p2m = 0, p2a = 0;
+  int p3m = 0, p3a = 0;
+  int ftm = 0, fta = 0;
+  int oreb = 0, dreb = 0;
+  int ast = 0, stl = 0, blk = 0, to = 0, fouls = 0;
 
-  for (final e in filtered.where((e) => e.playerId == playerId)) {
-    if (e.action == ActionType.p1Make) pts += 1;
-    if (e.action == ActionType.p2Make) pts += 2;
-    if (e.action == ActionType.p3Make) pts += 3;
-    if (e.action == ActionType.foul) fouls += 1;
+  for (final e in filtered) {
+    if (e.playerId == playerId) {
+      switch (e.action) {
+        case ActionType.p2Make:
+          pts += 2; p2m++; p2a++; break;
+        case ActionType.p2Miss:
+          p2a++; break;
+        case ActionType.p3Make:
+          pts += 3; p3m++; p3a++; break;
+        case ActionType.p3Miss:
+          p3a++; break;
+        case ActionType.p1Make:
+          pts += 1; ftm++; fta++; break;
+        case ActionType.p1Miss:
+          fta++; break;
+        case ActionType.or:
+          oreb++; break;
+        case ActionType.dr:
+          dreb++; break;
+        case ActionType.steal:
+          stl++; break;
+        case ActionType.block:
+          blk++; break;
+        case ActionType.turnover:
+          to++; break;
+        case ActionType.foul:
+          fouls++; break;
+        default:
+          break;
+      }
+    }
+    // Assist check (playerId is the one making the shot, assistPlayerId is the assistant)
+    if (e.assistPlayerId == playerId) {
+      ast++;
+    }
   }
 
-  return PlayerStats(points: pts, fouls: fouls);
+  return PlayerStats(
+    pts: pts,
+    fgm: p2m + p3m,
+    fga: p2a + p3a,
+    p2m: p2m,
+    p2a: p2a,
+    p3m: p3m,
+    p3a: p3a,
+    ftm: ftm,
+    fta: fta,
+    oreb: oreb,
+    dreb: dreb,
+    treb: oreb + dreb,
+    ast: ast,
+    stl: stl,
+    blk: blk,
+    turnover: to,
+    fouls: fouls,
+  );
 });
 
 final lineScoreProvider = Provider<Map<String, Map<String, int>>>((ref) {
