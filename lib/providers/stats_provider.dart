@@ -4,6 +4,7 @@ import '../models/game_event.dart';
 import '../models/player.dart';
 import '../models/mock_data.dart';
 import 'game_provider.dart';
+import 'period_provider.dart';
 
 // Player Management
 class HomeTeamPlayersNotifier extends Notifier<List<Player>> {
@@ -68,12 +69,16 @@ int _calculateScore(List<GameEvent> events, TeamType team) {
 
 final homeFoulsProvider = Provider<int>((ref) {
   final events = ref.watch(gameEventsProvider);
-  return _calculateTeamFouls(events, TeamType.home);
+  final currentPeriod = ref.watch(currentPeriodProvider);
+  final filtered = events.where((e) => e.period == currentPeriod).toList();
+  return _calculateTeamFouls(filtered, TeamType.home);
 });
 
 final awayFoulsProvider = Provider<int>((ref) {
   final events = ref.watch(gameEventsProvider);
-  return _calculateTeamFouls(events, TeamType.away);
+  final currentPeriod = ref.watch(currentPeriodProvider);
+  final filtered = events.where((e) => e.period == currentPeriod).toList();
+  return _calculateTeamFouls(filtered, TeamType.away);
 });
 
 int _calculateTeamFouls(List<GameEvent> events, TeamType team) {
@@ -88,10 +93,13 @@ class PlayerStats {
 
 final playerStatsProvider = Provider.family<PlayerStats, String>((ref, playerId) {
   final events = ref.watch(gameEventsProvider);
+  final filter = ref.watch(displayPeriodFilterProvider);
+  final filtered = filter == 'ALL' ? events : events.where((e) => e.period == filter).toList();
+  
   int pts = 0;
   int fouls = 0;
 
-  for (final e in events.where((e) => e.playerId == playerId)) {
+  for (final e in filtered.where((e) => e.playerId == playerId)) {
     if (e.action == ActionType.p1Make) pts += 1;
     if (e.action == ActionType.p2Make) pts += 2;
     if (e.action == ActionType.p3Make) pts += 3;
@@ -99,4 +107,21 @@ final playerStatsProvider = Provider.family<PlayerStats, String>((ref, playerId)
   }
 
   return PlayerStats(points: pts, fouls: fouls);
+});
+
+final lineScoreProvider = Provider<Map<String, Map<String, int>>>((ref) {
+  final events = ref.watch(gameEventsProvider);
+  final periods = ref.watch(availablePeriodsProvider);
+  
+  final Map<String, Map<String, int>> scores = {
+    'home': {},
+    'away': {},
+  };
+
+  for (final p in periods) {
+    scores['home']![p] = _calculateScore(events.where((e) => e.period == p).toList(), TeamType.home);
+    scores['away']![p] = _calculateScore(events.where((e) => e.period == p).toList(), TeamType.away);
+  }
+
+  return scores;
 });

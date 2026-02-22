@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/action_type.dart';
 import '../../models/game_event.dart';
-import '../../models/player.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../providers/pending_action_provider.dart';
+import '../../providers/period_provider.dart';
+import '../../providers/clock_provider.dart';
 import 'player_list.dart';
 
 const uuid = Uuid();
@@ -18,6 +19,9 @@ class CourtArea extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final events = ref.watch(gameEventsProvider);
     final pendingShot = ref.watch(pendingShotLocationProvider);
+    final displayFilter = ref.watch(displayPeriodFilterProvider);
+
+    final filteredEvents = displayFilter == 'ALL' ? events : events.where((e) => e.period == displayFilter).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -27,7 +31,7 @@ class CourtArea extends ConsumerWidget {
             color: const Color(0xFF0F172A), // Dark slate
             child: CustomPaint(
               size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: CourtPainter(events: events, pendingShot: pendingShot),
+              painter: CourtPainter(events: filteredEvents, pendingShot: pendingShot),
             ),
           ),
         );
@@ -48,7 +52,7 @@ class CourtArea extends ConsumerWidget {
       return;
     }
 
-    final aspect = constraints.maxWidth / constraints.maxHeight;
+    // final aspect = constraints.maxWidth / constraints.maxHeight;
     final is3P = is3PointShot(details.localPosition.dx, details.localPosition.dy, Size(constraints.maxWidth, constraints.maxHeight));
 
     final isMake = await showMakeMissDialog(context);
@@ -63,11 +67,17 @@ class CourtArea extends ConsumerWidget {
         ? (isMake ? ActionType.p3Make : ActionType.p3Miss)
         : (isMake ? ActionType.p2Make : ActionType.p2Miss);
 
+    final period = ref.read(currentPeriodProvider);
+    final clockSeconds = ref.read(gameClockProvider);
+    final m = clockSeconds ~/ 60;
+    final s = clockSeconds % 60;
+    final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
     final event = GameEvent(
       id: uuid.v4(),
       timestamp: DateTime.now(),
-      gameClock: '10:00', // Dummy
-      period: 'Q1', // Dummy
+      gameClock: gameClock,
+      period: period,
       team: player.team,
       playerId: player.id,
       action: action,

@@ -6,6 +6,8 @@ import '../../models/action_type.dart';
 import '../../models/game_event.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/pending_action_provider.dart';
+import '../../providers/period_provider.dart';
+import '../../providers/clock_provider.dart';
 import 'player_list.dart';
 
 const uuid = Uuid();
@@ -114,11 +116,17 @@ class ActionPad extends ConsumerWidget {
       return;
     }
 
+    final period = ref.read(currentPeriodProvider);
+    final clockSeconds = ref.read(gameClockProvider);
+    final m = clockSeconds ~/ 60;
+    final s = clockSeconds % 60;
+    final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
     final event = GameEvent(
       id: uuid.v4(),
       timestamp: DateTime.now(),
-      gameClock: '10:00',
-      period: 'Q1',
+      gameClock: gameClock,
+      period: period,
       team: player.team,
       playerId: player.id,
       action: action,
@@ -146,11 +154,17 @@ class ActionPad extends ConsumerWidget {
       reboundType = (lastEvent?.team == player.team) ? ActionType.or : ActionType.dr;
     }
     
+    final period = ref.read(currentPeriodProvider);
+    final clockSeconds = ref.read(gameClockProvider);
+    final m = clockSeconds ~/ 60;
+    final s = clockSeconds % 60;
+    final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
     final event = GameEvent(
       id: uuid.v4(),
       timestamp: DateTime.now(),
-      gameClock: '10:00',
-      period: 'Q1',
+      gameClock: gameClock,
+      period: period,
       team: player.team,
       playerId: player.id,
       action: reboundType,

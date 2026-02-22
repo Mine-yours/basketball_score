@@ -6,7 +6,9 @@ import '../../models/action_type.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../providers/clock_provider.dart';
+import '../../providers/period_provider.dart';
 import 'player_list.dart';
+import 'clock_edit_modal.dart';
 
 class HeaderScoreboard extends ConsumerStatefulWidget {
   const HeaderScoreboard({super.key});
@@ -63,13 +65,19 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
     final isRunning = ref.watch(isClockRunningProvider);
 
     final events = ref.watch(gameEventsProvider);
-    final homeEvents = events.where((e) => e.team == TeamType.home).toList().reversed.take(3).toList();
-    final awayEvents = events.where((e) => e.team == TeamType.away).toList().reversed.take(3).toList();
+    final currentPeriod = ref.watch(currentPeriodProvider);
+    final availablePeriods = ref.watch(availablePeriodsProvider);
+    final displayFilter = ref.watch(displayPeriodFilterProvider);
+    final lineScores = ref.watch(lineScoreProvider);
+
+    final filteredEvents = displayFilter == 'ALL' ? events : events.where((e) => e.period == displayFilter).toList();
+    final homeEvents = filteredEvents.where((e) => e.team == TeamType.home).toList().reversed.take(3).toList();
+    final awayEvents = filteredEvents.where((e) => e.team == TeamType.away).toList().reversed.take(3).toList();
 
     return Container(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      height: 120, // Increased height
+      height: 180, // Increased height to prevent overflow
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -98,38 +106,84 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
             ),
           ),
           
-          // CLOCK & PERIOD (Center)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Q1', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              Row(
-                children: [
-                  Text(_formatClock(clockSeconds), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                  IconButton(
-                    icon: Icon(isRunning ? LucideIcons.pause : LucideIcons.play),
-                    onPressed: _toggleClock,
-                    color: isRunning ? Colors.amber : Colors.green,
+          // CLOCK, PERIODS & LINE SCORE (Center)
+          Expanded(
+            flex: 3,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Period Selection Tabs
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _PeriodTab('ALL', displayFilter == 'ALL', () => ref.read(displayPeriodFilterProvider.notifier).state = 'ALL'),
+                      ...availablePeriods.map((p) => _PeriodTab(
+                        p, 
+                        displayFilter == p, 
+                        () {
+                          ref.read(displayPeriodFilterProvider.notifier).state = p;
+                          ref.read(currentPeriodProvider.notifier).state = p;
+                        },
+                        isCurrent: currentPeriod == p,
+                      )),
+                      IconButton(
+                        icon: const Icon(LucideIcons.plus, size: 14),
+                        onPressed: () => ref.read(availablePeriodsProvider.notifier).addOvertime(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              SizedBox(
-                height: 30, // constrain button size
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isSubMode ? Colors.orange : null,
-                    foregroundColor: isSubMode ? Colors.white : null,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  onPressed: () {
-                    ref.read(isSubstitutionModeProvider.notifier).state = !isSubMode;
-                    ref.read(substitutionTargetProvider.notifier).state = null;
-                  },
-                  icon: const Icon(LucideIcons.arrowRightLeft, size: 14),
-                  label: const Text('SUB', style: TextStyle(fontSize: 12)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                // Main Row: Home Line Scores | Clock | Away Line Scores
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Home Line Scores
+                    _MiniLineScore(periods: availablePeriods, scores: lineScores['home']!, color: Colors.blue),
+                    const SizedBox(width: 12),
+                    // Clock
+                    InkWell(
+                      onTap: () {
+                        if (isRunning) _toggleClock();
+                        showDialog(context: context, builder: (context) => const ClockEditModal());
+                      },
+                      child: Text(_formatClock(clockSeconds), style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                    ),
+                    IconButton(
+                      icon: Icon(isRunning ? LucideIcons.pause : LucideIcons.play),
+                      onPressed: _toggleClock,
+                      color: isRunning ? Colors.amber : Colors.green,
+                      iconSize: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    // Away Line Scores
+                    _MiniLineScore(periods: availablePeriods, scores: lineScores['away']!, color: Colors.red),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 28,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isSubMode ? Colors.orange : null,
+                      foregroundColor: isSubMode ? Colors.white : null,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    onPressed: () {
+                      ref.read(isSubstitutionModeProvider.notifier).state = !isSubMode;
+                      ref.read(substitutionTargetProvider.notifier).state = null;
+                    },
+                    icon: const Icon(LucideIcons.arrowRightLeft, size: 14),
+                    label: const Text('SUBSTITUTION', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
           ),
           
           // AWAY INFO & HISTORY
@@ -180,6 +234,69 @@ class _TeamHeader extends StatelessWidget {
         Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
         Text('$score', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, fontFamily: 'monospace', height: 1.0)),
         Text('Fouls: $fouls', style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+}
+class _PeriodTab extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final bool isCurrent;
+  final VoidCallback onTap;
+
+  const _PeriodTab(this.label, this.isSelected, this.onTap, {this.isCurrent = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.withOpacity(0.3) : Colors.transparent,
+          border: isCurrent ? Border.all(color: Colors.amber, width: 2) : Border.all(color: Colors.grey.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(label, style: TextStyle(
+          fontSize: 10, 
+          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+          color: isCurrent ? Colors.amber : null,
+        )),
+      ),
+    );
+  }
+}
+
+class _MiniLineScore extends StatelessWidget {
+  final List<String> periods;
+  final Map<String, int> scores;
+  final Color color;
+
+  const _MiniLineScore({required this.periods, required this.scores, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: periods.map((p) => Container(
+            width: 28,
+            alignment: Alignment.center,
+            child: Text(p, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+          )).toList(),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: periods.map((p) => Container(
+            width: 28,
+            alignment: Alignment.center,
+            child: Text('${scores[p] ?? 0}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          )).toList(),
+        ),
       ],
     );
   }

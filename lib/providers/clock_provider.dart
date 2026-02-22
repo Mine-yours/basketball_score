@@ -12,6 +12,10 @@ class GameClockNotifier extends Notifier<int> {
   void reset(int seconds) {
     state = seconds;
   }
+
+  void setSeconds(int seconds) {
+    state = seconds;
+  }
 }
 
 class IsClockRunningNotifier extends Notifier<bool> {

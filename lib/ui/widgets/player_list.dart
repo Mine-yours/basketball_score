@@ -5,6 +5,8 @@ import '../../models/game_event.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/stats_provider.dart';
 import '../../providers/pending_action_provider.dart';
+import '../../providers/period_provider.dart';
+import '../../providers/clock_provider.dart';
 import '../../models/player.dart';
 import 'package:uuid/uuid.dart';
 import 'court_area.dart';
@@ -107,11 +109,17 @@ class PlayerList extends ConsumerWidget {
         }
       }
 
+      final period = ref.read(currentPeriodProvider);
+      final clockSeconds = ref.read(gameClockProvider);
+      final m = clockSeconds ~/ 60;
+      final s = clockSeconds % 60;
+      final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
       final event = GameEvent(
         id: uuid.v4(),
         timestamp: DateTime.now(),
-        gameClock: '10:00',
-        period: 'Q1',
+        gameClock: gameClock,
+        period: period,
         team: player.team,
         playerId: player.id,
         action: action,
@@ -136,11 +144,17 @@ class PlayerList extends ConsumerWidget {
           ? (isMake ? ActionType.p3Make : ActionType.p3Miss)
           : (isMake ? ActionType.p2Make : ActionType.p2Miss);
 
+      final period = ref.read(currentPeriodProvider);
+      final clockSeconds = ref.read(gameClockProvider);
+      final m = clockSeconds ~/ 60;
+      final s = clockSeconds % 60;
+      final gameClock = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
       final event = GameEvent(
         id: uuid.v4(),
         timestamp: DateTime.now(),
-        gameClock: '10:00',
-        period: 'Q1',
+        gameClock: gameClock,
+        period: period,
         team: player.team,
         playerId: player.id,
         action: action,
