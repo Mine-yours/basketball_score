@@ -25,7 +25,7 @@ class ActionPad extends ConsumerWidget {
           Expanded(
             child: Row(
               children: [
-                _buildActionButton(context, ref, 'Rebound', LucideIcons.circleDashed, () => _handleRebound(ref, context), isActive: pendingAction == ActionType.dr || pendingAction == ActionType.or),
+                _buildActionButton(context, ref, 'Rebound', LucideIcons.circleDashed, () => _handleRebound(ref, context), isActive: pendingAction == ActionType.dr || pendingAction == ActionType.or || pendingAction == ActionType.reb),
                 _buildActionButton(context, ref, 'Foul', LucideIcons.alertCircle, () => _handleAction(ref, ActionType.foul, context), isActive: pendingAction == ActionType.foul),
                 _buildActionButton(context, ref, 'Turnover', LucideIcons.xCircle, () => _handleAction(ref, ActionType.turnover, context), isActive: pendingAction == ActionType.turnover),
               ],
@@ -132,28 +132,20 @@ class ActionPad extends ConsumerWidget {
   void _handleRebound(WidgetRef ref, BuildContext context) {
     final player = ref.read(selectedPlayerProvider);
     if (player == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a player first')));
+      ref.read(pendingActionProvider.notifier).state = ActionType.reb;
       return;
     }
-
+    
     final events = ref.read(gameEventsProvider);
-    ActionType reboundAction = ActionType.dr; // Default DR
-
-    if (events.isNotEmpty) {
-      final lastEvent = events.last;
-      bool isMiss = lastEvent.action == ActionType.p1Miss || 
-                    lastEvent.action == ActionType.p2Miss || 
-                    lastEvent.action == ActionType.p3Miss;
-      
-      if (isMiss) {
-        if (lastEvent.team == player.team) {
-          reboundAction = ActionType.or; // Same team shot miss -> Offensive Rebound
-        } else {
-          reboundAction = ActionType.dr; // Opposing team shot miss -> Defensive Rebound
-        }
-      }
+    final lastEvent = events.isNotEmpty ? events.last : null;
+    
+    ActionType reboundType = ActionType.dr;
+    if (lastEvent != null && (lastEvent.action == ActionType.p2Miss || lastEvent.action == ActionType.p3Miss || lastEvent.action == ActionType.p1Miss)) {
+      reboundType = lastEvent.team == player.team ? ActionType.or : ActionType.dr;
+    } else {
+      reboundType = (lastEvent?.team == player.team) ? ActionType.or : ActionType.dr;
     }
-
+    
     final event = GameEvent(
       id: uuid.v4(),
       timestamp: DateTime.now(),
@@ -161,10 +153,11 @@ class ActionPad extends ConsumerWidget {
       period: 'Q1',
       team: player.team,
       playerId: player.id,
-      action: reboundAction,
+      action: reboundType,
     );
 
     ref.read(gameEventsProvider.notifier).addEvent(event);
     ref.read(selectedPlayerProvider.notifier).state = null; // Clear selection
+    ref.read(pendingActionProvider.notifier).state = null;
   }
 }

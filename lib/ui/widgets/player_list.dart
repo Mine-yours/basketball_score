@@ -7,24 +7,31 @@ import '../../providers/stats_provider.dart';
 import '../../providers/pending_action_provider.dart';
 import '../../models/player.dart';
 import 'package:uuid/uuid.dart';
+import 'court_area.dart';
 
 const uuid = Uuid();
 
 class SelectedPlayerNotifier extends Notifier<Player?> {
   @override
   Player? build() => null;
+  
+  set state(Player? value) => super.state = value;
 }
 final selectedPlayerProvider = NotifierProvider<SelectedPlayerNotifier, Player?>(SelectedPlayerNotifier.new);
 
 class IsSubstitutionModeNotifier extends Notifier<bool> {
   @override
   bool build() => false;
+
+  set state(bool value) => super.state = value;
 }
 final isSubstitutionModeProvider = NotifierProvider<IsSubstitutionModeNotifier, bool>(IsSubstitutionModeNotifier.new);
 
 class SubstitutionTargetNotifier extends Notifier<Player?> {
   @override
   Player? build() => null;
+
+  set state(Player? value) => super.state = value;
 }
 final substitutionTargetProvider = NotifierProvider<SubstitutionTargetNotifier, Player?>(SubstitutionTargetNotifier.new);
 
@@ -70,7 +77,7 @@ class PlayerList extends ConsumerWidget {
                     if (isSubMode) {
                       _handleSubTap(ref, player, team);
                     } else {
-                      _handleActionTap(ref, player);
+                      _handleActionTap(ref, player, context);
                     }
                   }
                 );
@@ -83,28 +90,67 @@ class PlayerList extends ConsumerWidget {
     );
   }
 
-  void _handleActionTap(WidgetRef ref, Player player) {
+  void _handleActionTap(WidgetRef ref, Player player, BuildContext context) async {
     final pendingAction = ref.read(pendingActionProvider);
     final pendingShot = ref.read(pendingShotLocationProvider);
     
     if (pendingAction != null) {
-      // Execute the pending action immediately
+      ActionType action = pendingAction;
+      
+      if (action == ActionType.reb) {
+        final events = ref.read(gameEventsProvider);
+        final lastEvent = events.isNotEmpty ? events.last : null;
+        if (lastEvent != null && (lastEvent.action == ActionType.p2Miss || lastEvent.action == ActionType.p3Miss || lastEvent.action == ActionType.p1Miss)) {
+          action = lastEvent.team == player.team ? ActionType.or : ActionType.dr;
+        } else {
+          action = (lastEvent?.team == player.team) ? ActionType.or : ActionType.dr;
+        }
+      }
+
       final event = GameEvent(
         id: uuid.v4(),
         timestamp: DateTime.now(),
-        gameClock: '10:00', // To be hooked to clock provider later
+        gameClock: '10:00',
         period: 'Q1',
         team: player.team,
         playerId: player.id,
-        action: pendingAction,
+        action: action,
       );
       ref.read(gameEventsProvider.notifier).addEvent(event);
       ref.read(pendingActionProvider.notifier).state = null;
     } else if (pendingShot != null) {
-      // Set the player, and let the court area modal know to open (could be handled via a global provider/event bus, or we simply select the player here)
-      // For simplicity, just select the player and the user still needs to click the court, OR we trigger the modal.
-      // Easiest is to set selected player.
-      ref.read(selectedPlayerProvider.notifier).state = player;
+      final x = pendingShot.x;
+      final y = pendingShot.y;
+
+      final isMake = await showMakeMissDialog(context);
+      if (isMake == null) return;
+
+      String? assistPlayerId;
+      if (isMake) {
+        assistPlayerId = await showAssistDialog(context, ref, player.team, player.id);
+      }
+
+      final is3P = pendingShot.is3P;
+
+      final action = is3P 
+          ? (isMake ? ActionType.p3Make : ActionType.p3Miss)
+          : (isMake ? ActionType.p2Make : ActionType.p2Miss);
+
+      final event = GameEvent(
+        id: uuid.v4(),
+        timestamp: DateTime.now(),
+        gameClock: '10:00',
+        period: 'Q1',
+        team: player.team,
+        playerId: player.id,
+        action: action,
+        x: x,
+        y: y,
+        assistPlayerId: assistPlayerId,
+      );
+
+      ref.read(gameEventsProvider.notifier).addEvent(event);
+      ref.read(pendingShotLocationProvider.notifier).state = null;
     } else {
       final selectedPlayer = ref.read(selectedPlayerProvider);
       if (selectedPlayer?.id == player.id) {

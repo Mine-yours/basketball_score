@@ -5,6 +5,8 @@ import '../../models/action_type.dart';
 class PendingActionNotifier extends Notifier<ActionType?> {
   @override
   ActionType? build() => null;
+  
+  set state(ActionType? value) => super.state = value;
 }
 
 final pendingActionProvider = NotifierProvider<PendingActionNotifier, ActionType?>(PendingActionNotifier.new);
@@ -13,12 +15,15 @@ final pendingActionProvider = NotifierProvider<PendingActionNotifier, ActionType
 class PendingShotLocation {
   final double x;
   final double y;
-  PendingShotLocation(this.x, this.y);
+  final bool is3P;
+  PendingShotLocation(this.x, this.y, this.is3P);
 }
 
 class PendingShotLocationNotifier extends Notifier<PendingShotLocation?> {
   @override
   PendingShotLocation? build() => null;
+
+  set state(PendingShotLocation? value) => super.state = value;
 }
 
 final pendingShotLocationProvider = NotifierProvider<PendingShotLocationNotifier, PendingShotLocation?>(PendingShotLocationNotifier.new);
