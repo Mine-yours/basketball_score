@@ -250,17 +250,20 @@ class CourtPainter extends CustomPainter {
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.height * 0.15, paint);
 
     // Draw Keys (Paint) with colors
-    final homeKeyPaint = Paint()
-      ..color = const Color(0xFF3B82F6).withOpacity(0.3)
+    final homeColor = const Color(0xFF3B82F6).withOpacity(0.3);
+    final awayColor = const Color(0xFFEF4444).withOpacity(0.3);
+
+    final leftKeyPaint = Paint()
+      ..color = (homeDirection == AttackDirection.left ? homeColor : awayColor)
       ..style = PaintingStyle.fill;
-    final awayKeyPaint = Paint()
-      ..color = const Color(0xFFEF4444).withOpacity(0.3)
+    final rightKeyPaint = Paint()
+      ..color = (homeDirection == AttackDirection.right ? homeColor : awayColor)
       ..style = PaintingStyle.fill;
 
     // Left Key Fill
-    canvas.drawRect(Rect.fromLTWH(10, size.height * 0.3, size.width * 0.15, size.height * 0.4), homeKeyPaint);
+    canvas.drawRect(Rect.fromLTWH(10, size.height * 0.3, size.width * 0.15, size.height * 0.4), leftKeyPaint);
     // Right Key Fill
-    canvas.drawRect(Rect.fromLTWH(size.width - 10 - size.width * 0.15, size.height * 0.3, size.width * 0.15, size.height * 0.4), awayKeyPaint);
+    canvas.drawRect(Rect.fromLTWH(size.width - 10 - size.width * 0.15, size.height * 0.3, size.width * 0.15, size.height * 0.4), rightKeyPaint);
 
     // Key outlines and arcs (rest of the code)
     // Left Key

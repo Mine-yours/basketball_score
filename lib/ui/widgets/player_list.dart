@@ -41,8 +41,8 @@ class PlayerList extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(team.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-              const Text('PTS  FOUL', style: TextStyle(color: Colors.white70, fontSize: 10)),
+              Text(team.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('PTS  FOUL', style: TextStyle(color: Colors.white70, fontSize: 12)),
             ],
           ),
         ),
@@ -206,7 +206,7 @@ class _PlayerListTile extends ConsumerWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        height: 48,
+        height: 56,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         color: isSelected 
             ? (isSubMode ? Colors.orange.withAlpha(128) : Theme.of(context).colorScheme.primaryContainer) 
@@ -220,6 +220,7 @@ class _PlayerListTile extends ConsumerWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: player.isOnCourt ? null : Colors.grey,
+                  fontSize: 16,
                 ),
               ),
             ),
@@ -230,7 +231,7 @@ class _PlayerListTile extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: player.isOnCourt ? null : Colors.grey,
-                  fontSize: 13,
+                  fontSize: 16,
                 ),
               ),
             ),

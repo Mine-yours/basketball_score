@@ -87,7 +87,7 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
     return Container(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      height: 180, // Increased height to prevent overflow
+      height: 220, // Increased height to prevent overflow
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -102,13 +102,13 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Recent Plays', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const Text('Recent Plays', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                       if (homeEvents.isEmpty) const Text('-', style: TextStyle(fontSize: 10, color: Colors.grey)),
                       ...homeEvents.map((e) => InkWell(
                         onTap: () => _editEventPlayer(context, ref, e),
                         child: Text(
                           e.action.name.toUpperCase(),
-                          style: TextStyle(fontSize: 12, color: Colors.blue[300], fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 14, color: Colors.blue[300], fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
                       )),
@@ -154,9 +154,14 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(LucideIcons.refreshCw, size: 16),
-                      tooltip: 'Side Change',
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(LucideIcons.refreshCw, size: 14),
+                      label: const Text('SIDE CHANGE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                        minimumSize: const Size(0, 36),
+                      ),
                       onPressed: () => ref.read(homeAttackDirectionProvider.notifier).toggle(),
                     ),
                   ],
@@ -171,18 +176,34 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                     _MiniLineScore(periods: availablePeriods, scores: lineScores['home']!, color: Colors.blue),
                     const SizedBox(width: 12),
                     // Clock
-                    InkWell(
-                      onTap: () {
-                        if (isRunning) _toggleClock();
-                        showDialog(context: context, builder: (context) => const ClockEditModal());
-                      },
-                      child: Text(_formatClock(clockSeconds), style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                    ),
-                    IconButton(
-                      icon: Icon(isRunning ? LucideIcons.pause : LucideIcons.play),
-                      onPressed: _toggleClock,
-                      color: isRunning ? Colors.amber : Colors.green,
-                      iconSize: 32,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      ),
+                      child: Row(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              if (isRunning) _toggleClock();
+                              showDialog(context: context, builder: (context) => const ClockEditModal());
+                            },
+                            child: Text(
+                              _formatClock(clockSeconds),
+                              style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(isRunning ? LucideIcons.pause : LucideIcons.play),
+                            onPressed: _toggleClock,
+                            color: isRunning ? Colors.amber : Colors.green,
+                            iconSize: 32,
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 12),
                     // Away Line Scores
@@ -191,19 +212,19 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                  height: 28,
+                  height: 40,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isSubMode ? Colors.orange : null,
                       foregroundColor: isSubMode ? Colors.white : null,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                     ),
                     onPressed: () {
                       ref.read(isSubstitutionModeProvider.notifier).toggle();
                       ref.read(substitutionTargetProvider.notifier).setPlayer(null);
                     },
-                    icon: const Icon(LucideIcons.arrowRightLeft, size: 14),
-                    label: const Text('SUBSTITUTION', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    icon: const Icon(LucideIcons.arrowRightLeft, size: 18),
+                    label: const Text('SUBSTITUTION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -220,13 +241,13 @@ class _HeaderScoreboardState extends ConsumerState<HeaderScoreboard> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Recent Plays', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      const Text('Recent Plays', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                       if (awayEvents.isEmpty) const Text('-', style: TextStyle(fontSize: 10, color: Colors.grey)),
                       ...awayEvents.map((e) => InkWell(
                         onTap: () => _editEventPlayer(context, ref, e),
                         child: Text(
                           e.action.name.toUpperCase(),
-                          style: TextStyle(fontSize: 12, color: Colors.red[300], fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 14, color: Colors.red[300], fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
                       )),
@@ -292,13 +313,13 @@ class _TeamHeader extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 20)),
             const SizedBox(width: 4),
-            Text(direction, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(direction, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 22)),
           ],
         ),
-        Text('$score', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, fontFamily: 'monospace', height: 1.0)),
-        Text('Fouls: $fouls', style: const TextStyle(fontSize: 12)),
+        Text('$score', style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, fontFamily: 'monospace', height: 1.0)),
+        Text('Fouls: $fouls', style: const TextStyle(fontSize: 14)),
       ],
     );
   }
@@ -324,7 +345,7 @@ class _PeriodTab extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(label, style: TextStyle(
-          fontSize: 10, 
+          fontSize: 14, 
           fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
           color: isCurrent ? Colors.amber : null,
         )),
@@ -342,27 +363,30 @@ class _MiniLineScore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: periods.map((p) => Container(
-            width: 28,
-            alignment: Alignment.center,
-            child: Text(p, style: const TextStyle(fontSize: 9, color: Colors.grey)),
-          )).toList(),
-        ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: periods.map((p) => Container(
-            width: 28,
-            alignment: Alignment.center,
-            child: Text('${scores[p] ?? 0}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-          )).toList(),
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: periods.map((p) => Container(
+              width: 32, // Slightly wider for better readability
+              alignment: Alignment.center,
+              child: Text(p, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            )).toList(),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: periods.map((p) => Container(
+              width: 32, // Slightly wider
+              alignment: Alignment.center,
+              child: Text('${scores[p] ?? 0}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            )).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -76,7 +76,7 @@ class ActionPad extends ConsumerWidget {
             children: [
               Icon(icon, size: 24),
               const SizedBox(height: 4),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
           ),
@@ -103,7 +103,7 @@ class ActionPad extends ConsumerWidget {
             children: [
               Icon(LucideIcons.undo, size: 24),
               SizedBox(height: 4),
-              Text('UNDO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              Text('UNDO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
         ),
