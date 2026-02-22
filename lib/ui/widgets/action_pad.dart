@@ -1,0 +1,170 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:uuid/uuid.dart';
+import '../../models/action_type.dart';
+import '../../models/game_event.dart';
+import '../../providers/game_provider.dart';
+import '../../providers/pending_action_provider.dart';
+import 'player_list.dart';
+
+const uuid = Uuid();
+
+class ActionPad extends ConsumerWidget {
+  const ActionPad({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingAction = ref.watch(pendingActionProvider);
+
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                _buildActionButton(context, ref, 'Rebound', LucideIcons.circleDashed, () => _handleRebound(ref, context), isActive: pendingAction == ActionType.dr || pendingAction == ActionType.or),
+                _buildActionButton(context, ref, 'Foul', LucideIcons.alertCircle, () => _handleAction(ref, ActionType.foul, context), isActive: pendingAction == ActionType.foul),
+                _buildActionButton(context, ref, 'Turnover', LucideIcons.xCircle, () => _handleAction(ref, ActionType.turnover, context), isActive: pendingAction == ActionType.turnover),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                _buildActionButton(context, ref, 'Steal', LucideIcons.mousePointerClick, () => _handleAction(ref, ActionType.steal, context), isActive: pendingAction == ActionType.steal),
+                _buildActionButton(context, ref, 'Block', LucideIcons.hand, () => _handleAction(ref, ActionType.block, context), isActive: pendingAction == ActionType.block),
+                _buildUndoButton(context, ref),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                _buildActionButton(context, ref, 'FT MAKE', LucideIcons.check, () => _handleAction(ref, ActionType.p1Make, context), color: Colors.green, isActive: pendingAction == ActionType.p1Make),
+                _buildActionButton(context, ref, 'FT MISS', LucideIcons.x, () => _handleAction(ref, ActionType.p1Miss, context), color: Colors.red, isActive: pendingAction == ActionType.p1Miss),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, WidgetRef ref, String label, IconData icon, VoidCallback onTap, {Color? color, bool isActive = false}) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isActive ? Colors.amber : (color ?? Theme.of(context).colorScheme.surfaceContainerHighest),
+            foregroundColor: isActive ? Colors.black : (color != null ? Colors.white : null),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: isActive ? const BorderSide(color: Colors.white, width: 2) : BorderSide.none,
+            ),
+          ),
+          onPressed: onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 24),
+              const SizedBox(height: 4),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUndoButton(BuildContext context, WidgetRef ref) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: () {
+            ref.read(gameEventsProvider.notifier).undoLastEvent();
+          },
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(LucideIcons.undo, size: 24),
+              SizedBox(height: 4),
+              Text('UNDO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleAction(WidgetRef ref, ActionType action, BuildContext context) {
+    final player = ref.read(selectedPlayerProvider);
+    if (player == null) {
+      // Reverse flow: save pending action and wait for player selection
+      ref.read(pendingActionProvider.notifier).state = action;
+      return;
+    }
+
+    final event = GameEvent(
+      id: uuid.v4(),
+      timestamp: DateTime.now(),
+      gameClock: '10:00',
+      period: 'Q1',
+      team: player.team,
+      playerId: player.id,
+      action: action,
+    );
+
+    ref.read(gameEventsProvider.notifier).addEvent(event);
+    ref.read(selectedPlayerProvider.notifier).state = null; // Clear selection
+    ref.read(pendingActionProvider.notifier).state = null; // Clear pending action
+  }
+
+  void _handleRebound(WidgetRef ref, BuildContext context) {
+    final player = ref.read(selectedPlayerProvider);
+    if (player == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a player first')));
+      return;
+    }
+
+    final events = ref.read(gameEventsProvider);
+    ActionType reboundAction = ActionType.dr; // Default DR
+
+    if (events.isNotEmpty) {
+      final lastEvent = events.last;
+      bool isMiss = lastEvent.action == ActionType.p1Miss || 
+                    lastEvent.action == ActionType.p2Miss || 
+                    lastEvent.action == ActionType.p3Miss;
+      
+      if (isMiss) {
+        if (lastEvent.team == player.team) {
+          reboundAction = ActionType.or; // Same team shot miss -> Offensive Rebound
+        } else {
+          reboundAction = ActionType.dr; // Opposing team shot miss -> Defensive Rebound
+        }
+      }
+    }
+
+    final event = GameEvent(
+      id: uuid.v4(),
+      timestamp: DateTime.now(),
+      gameClock: '10:00',
+      period: 'Q1',
+      team: player.team,
+      playerId: player.id,
+      action: reboundAction,
+    );
+
+    ref.read(gameEventsProvider.notifier).addEvent(event);
+    ref.read(selectedPlayerProvider.notifier).state = null; // Clear selection
+  }
+}
